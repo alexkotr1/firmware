@@ -225,8 +225,73 @@ std::vector<Option> getScriptsOptionsList(String currentPath, bool saveStartupSc
                                    bruceConfig.startupAppJSInterpreterFile = fullPath;
                                    bruceConfig.saveFile();
                                } else {
-                                   Serial.printf("Running script: %s\n", fullPath.c_str());
-                                   run_bjs_script_headless(*fs, fullPath);
+
+                                   String pinnedPath = "/apps/" + nameOnly;
+                                   bool isPinned = LittleFS.exists(pinnedPath);
+
+                                   std::vector<Option> scriptActionMenu;
+
+                                   scriptActionMenu.push_back(
+                                       {"Run App", [=]() {
+                                            Serial.printf("Running script: %s\n", fullPath.c_str());
+                                            run_bjs_script_headless(*fs, fullPath);
+                                        }}
+                                   );
+
+                                   if (isPinned) {
+                                       scriptActionMenu.push_back(
+                                           {"Unpin from Home", [=]() {
+                                                LittleFS.remove(pinnedPath);
+
+                                                tft.fillScreen(TFT_BLACK);
+                                                tft.setTextSize(FM);
+                                                tft.setTextColor(TFT_ORANGE);
+                                                tft.drawCentreString(
+                                                    "App Unpinned!", tftWidth / 2, tftHeight / 2 - 10, 1
+                                                );
+                                                tft.setTextColor(TFT_WHITE);
+                                                tft.drawCentreString(
+                                                    "Reboot to apply", tftWidth / 2, tftHeight / 2 + 15, 1
+                                                );
+
+                                                vTaskDelay(pdMS_TO_TICKS(1500));
+                                                returnToMenu = true;
+                                            }}
+                                       );
+                                   } else {
+                                       scriptActionMenu.push_back(
+                                           {"Pin to Home", [=]() {
+                                                if (!LittleFS.exists("/apps")) { LittleFS.mkdir("/apps"); }
+
+                                                File src = fs->open(fullPath, FILE_READ);
+                                                File dst = LittleFS.open(pinnedPath, FILE_WRITE);
+
+                                                if (src && dst) {
+                                                    size_t n;
+                                                    uint8_t buf[128];
+                                                    while ((n = src.read(buf, sizeof(buf))) > 0) {
+                                                        dst.write(buf, n);
+                                                    }
+                                                }
+                                                if (src) src.close();
+                                                if (dst) dst.close();
+
+                                                tft.fillScreen(TFT_BLACK);
+                                                tft.setTextSize(FM);
+                                                tft.setTextColor(TFT_GREEN);
+                                                tft.drawCentreString(
+                                                    "App Pinned!", tftWidth / 2, tftHeight / 2 - 10, 1
+                                                );
+                                                tft.setTextColor(TFT_WHITE);
+                                                vTaskDelay(pdMS_TO_TICKS(1500));
+                                                returnToMenu = true;
+                                            }}
+                                       );
+                                   }
+
+                                   // Trigger the UI for the submenu
+                                   loopOptions(scriptActionMenu, MENU_TYPE_SUBMENU, entry_title.c_str());
+                                   // -------------------------------------------------
                                }
                            }});
         }
