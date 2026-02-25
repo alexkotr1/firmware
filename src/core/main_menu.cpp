@@ -1,64 +1,15 @@
 #include "main_menu.h"
-#include "../modules/bjs_interpreter/interpreter.h"
 #include "display.h"
 #include "main_menu.h"
+#include "modules/bjs_interpreter/interpreter.h"
+#include "modules/dynamicjs/dynamicjs.h"
 #include "utils.h"
 #include <LittleFS.h>
 #include <globals.h>
 #include <vector>
-class DynamicJSApp : public MenuItemInterface {
-public:
-    String filePath;
 
-    DynamicJSApp(String name, String path) : MenuItemInterface(name) { filePath = path; }
+extern String getScriptsFolder(FS *&fs);
 
-    void optionsMenu() override { run_bjs_script_headless(LittleFS, filePath); }
-
-    void drawIcon(float scale = 1) override {
-        tft.setTextSize(2 * scale);
-        tft.setTextColor(TFT_CYAN);
-        tft.drawCentreString(getName(), tftWidth / 2, tftHeight / 2 - 10, 1);
-
-        tft.setTextSize(1 * scale);
-        tft.setTextColor(TFT_WHITE);
-        tft.drawCentreString("(JS App)", tftWidth / 2, tftHeight / 2 + 15, 1);
-    }
-
-    bool hasTheme() override { return false; }
-
-    String themePath() override { return ""; }
-};
-
-static std::vector<DynamicJSApp *> dynamicHomeApps;
-
-void loadDynamicApps() {
-    for (auto app : dynamicHomeApps) { delete app; }
-    dynamicHomeApps.clear();
-
-    if (!LittleFS.exists("/apps")) {
-        LittleFS.mkdir("/apps");
-        return;
-    }
-
-    File root = LittleFS.open("/apps");
-    if (!root || !root.isDirectory()) return;
-
-    while (true) {
-        bool isDir;
-        String fullPath = root.getNextFileName(&isDir);
-        if (fullPath == "") break;
-
-        if (!isDir && (fullPath.endsWith(".js") || fullPath.endsWith(".JS"))) {
-            String nameOnly = fullPath.substring(fullPath.lastIndexOf("/") + 1);
-            nameOnly = nameOnly.substring(0, nameOnly.lastIndexOf("."));
-
-            DynamicJSApp *newApp = new DynamicJSApp(nameOnly, fullPath);
-            dynamicHomeApps.push_back(newApp);
-        }
-    }
-    root.close();
-}
-// --------------------------------
 MainMenu::MainMenu() {
     _menuItems = {
         &wifiMenu,
@@ -91,7 +42,30 @@ MainMenu::MainMenu() {
 
     _totalItems = _menuItems.size();
 }
+static std::vector<DynamicJSApp *> dynamicHomeApps;
+void loadDynamicApps() {
+    for (auto app : dynamicHomeApps) { delete app; }
+    dynamicHomeApps.clear();
 
+    for (String path : bruceConfig.pinnedScripts) {
+        FS *appFs = nullptr;
+
+        if (SD.exists(path)) {
+            appFs = &SD;
+        } else if (LittleFS.exists(path)) {
+            appFs = &LittleFS;
+        }
+
+        if (appFs != nullptr) {
+            String nameOnly = path.substring(path.lastIndexOf("/") + 1);
+            int dotIndex = nameOnly.lastIndexOf(".");
+            if (dotIndex > 0) { nameOnly = nameOnly.substring(0, dotIndex); }
+
+            DynamicJSApp *newApp = new DynamicJSApp(nameOnly, path, appFs);
+            dynamicHomeApps.push_back(newApp);
+        }
+    }
+}
 MainMenu::~MainMenu() {}
 
 void MainMenu::begin(void) {

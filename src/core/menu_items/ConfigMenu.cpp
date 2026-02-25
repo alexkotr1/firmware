@@ -2,6 +2,7 @@
 #include "core/display.h"
 #include "core/i2c_finder.h"
 #include "core/main_menu.h"
+#include "core/sd_functions.h"
 #include "core/settings.h"
 #include "core/utils.h"
 #include "core/wifi/wifi_common.h"
@@ -168,6 +169,7 @@ void ConfigMenu::systemMenu() {
              }                                                                                                           },
             {"Startup App",                                                         [this]() { setStartupApp(); }        },
             {"Hide/Show Apps",                                                      [this]() { mainMenu.hideAppsMenu(); }},
+            {"Pinned Apps",                                                         [this]() { pinnedAppsMenu(); }       },
             {"Clock",                                                               [this]() { setClock(); }             },
             {"Advanced",                                                            [this]() { advancedMenu(); }         },
             {"Back",                                                                []() {}                              },
