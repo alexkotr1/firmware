@@ -4,9 +4,8 @@
 class DynamicJSApp : public MenuItemInterface {
 public:
     String filePath;
-    FS *fs; // <--- Store the filesystem pointer here
+    FS *fs; 
 
-    // Require the filesystem in the constructor
     DynamicJSApp(String name, String path, FS *fileSystem);
 
     void optionsMenu() override;
